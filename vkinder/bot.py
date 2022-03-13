@@ -1,46 +1,17 @@
-import vk_api
-from random import randrange
-from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
-from data import cities, sex, relation, sex_reverse, relation_reverse
+from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 import re
-from user_api import find_users, get_photos_for_founded_users, vk_user_session
-from db import Users, add_user_to_db, clear_table, add_to_favorites, add_to_blacklist
-
+from vkinder.user import find_users, get_photos_for_founded_users, vk_user_session
+from data import cities, sex, relation, sex_reverse, relation_reverse
+from vkinder.db import Users, add_user_to_db, create_tables, add_to_favorites, add_to_blacklist, lines_count
+from vkinder.group import write_message, get_fullname, vk_group_session
 import requests
 from io import BytesIO
 from vk_api.upload import VkUpload
 
 
-GROUP_TOKEN = '242ccb4880c150584eaa54371361c18bff724d7969d0705af912250f3b2468ec7d71eb23a50ec38aedf75'
-
-vk_group_session = vk_api.VkApi(token=GROUP_TOKEN)
-vk = vk_group_session.get_api()
 longpoll = VkLongPoll(vk_group_session)
 upload = VkUpload(vk_user_session)
-
-
-def write_message(user_id=None, message=None, keyboard=None, attachment=None):
-    post = {'user_id': user_id,
-            'random_id': randrange(10 ** 7),
-            }
-    if message:
-        post['message'] = message
-
-    if keyboard:
-        post['keyboard'] = keyboard.get_keyboard()
-
-    if attachment:
-        post['attachment'] = attachment
-
-    vk_group_session.method('messages.send', post)
-
-
-def get_fullname(user_id):
-    request = vk_group_session.method('users.get', values={'user_ids': user_id})[0]
-    first_name = request['first_name']
-    last_name = request['last_name']
-    return first_name, last_name
 
 
 def bot_logic_advanced(user_photos, text, attachments=None, user_id=None):
@@ -132,7 +103,7 @@ def bot_logic_advanced(user_photos, text, attachments=None, user_id=None):
 
 
 def start_bot(text=None):
-    clear_table(Users)
+    create_tables(Users)
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW:
@@ -210,7 +181,7 @@ def bot_logic():
                     write_message(uid, f'{name} идет поиск... Это займет некоторое время.')
 
                     if len(search_parameters) > 0:
-                        # search_parameters['offset'] = lines_count(Users) + 20
+                        search_parameters['offset'] = lines_count(Users)
                         users_list = find_users(**search_parameters)
 
                         if not users_list:
@@ -245,9 +216,3 @@ def bot_logic():
 
                 else:
                     write_message(uid, message='я тебя не понял, попробуй еще раз, menu для информации')
-
-
-if __name__ == "__main__":
-    start_bot()
-
-

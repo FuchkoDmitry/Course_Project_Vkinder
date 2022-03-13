@@ -2,14 +2,14 @@ import sqlalchemy as sq
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from keys import db_name, db_login, db_password
 
 Base = declarative_base()
 
-db = 'postgresql://postgres:789@localhost:5432/vkinder' #убрать названия в отдельный файл
+db = f'postgresql://{db_login}:{db_password}@localhost:5432/{db_name}'
 engine = sq.create_engine(db)
 Session = sessionmaker(bind=engine)
 session = Session()
-# Base.metadata.create_all(engine) # создаем таблицы
 
 
 class Users(Base):
@@ -30,7 +30,7 @@ class BlackList(Base):
     blacklisted_user_id = sq.Column(sq.Integer, primary_key=True)
 
 
-def clear_table(db_table):
+def create_tables(db_table):
     try:
         db_table.__table__.drop(engine)
         Base.metadata.create_all(engine)
@@ -69,12 +69,8 @@ def add_to_favorites(user_id, favorite_id, photos_list):
         user = Favorites(user_id=str(user_id), favorite_id=str(favorite_id), photos_list=photos_list)
         session.add(user)
         session.commit()
-        print('добавлена')
-        print(session.query(Favorites).where(Favorites.favorite_id == f'{favorite_id}').first())
         return True
     else:
-        print('запись существует в бд')
-        print(session.query(Favorites).where(Favorites.favorite_id == f'{favorite_id}').first())
         return False
 
 
@@ -88,10 +84,6 @@ def add_to_blacklist(user_id, blacklisted_user_id):
         user = BlackList(user_id=user_id, blacklisted_user_id=blacklisted_user_id)
         session.add(user)
         session.commit()
-        print(user.blacklisted_user_id, 'added')
-        print(session.query(BlackList).where(BlackList.blacklisted_user_id == f'{blacklisted_user_id}').first())
         return True
     else:
-        print('запись существует в бд')
-        print(session.query(BlackList).where(BlackList.blacklisted_user_id == f'{blacklisted_user_id}').first())
         return False
