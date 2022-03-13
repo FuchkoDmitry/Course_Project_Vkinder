@@ -5,8 +5,8 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from data import cities, sex, relation, sex_reverse, relation_reverse
 import re
 from user_api import find_users, get_photos_for_founded_users, vk_user_session
-from db import Users, add_user_to_db, Base, engine, clear_table, lines_count
-from datetime import datetime
+from db import Users, add_user_to_db, clear_table, add_to_favorites, add_to_blacklist
+
 import requests
 from io import BytesIO
 from vk_api.upload import VkUpload
@@ -43,94 +43,92 @@ def get_fullname(user_id):
     return first_name, last_name
 
 
-def upload_photos_in_chat_2(user_photos, text, counter=0):
+def bot_logic_advanced(user_photos, text, attachments=None, user_id=None):
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             text = event.text.lower()
             uid = event.user_id
             if text == 'start' or text == 'next' or text == 'search' or text == 'go':
+                if user_id:
+                    del user_photos[user_id]
                 if len(user_photos) == 0:
                     keyboard = VkKeyboard(one_time=True)
                     keyboard.add_button('TRY AGAIN', color=VkKeyboardColor.NEGATIVE)
                     write_message(uid, message='список закончился, для начала нового поиска нажмите TRY AGAIN',
                                   keyboard=keyboard)
-
                     return bot_logic()
 
                 for user_id, photos in user_photos.items():
                     user_link = f'https://vk.com/id{user_id}'
+                    attachments = []
                     name, surname = get_fullname(user_id)
                     keyboard = VkKeyboard(one_time=False, inline=True)
                     keyboard.add_openlink_button('перейти на страницу пользователя', user_link)
                     write_message(user_id=uid, message=f'{surname} {name}', keyboard=keyboard)
                     add_user_to_db(user_id)
-                    print(f'{user_id} добавлен в БД')
-                    print(user_id, photos)
+
                     for photo in photos:
                         photo_bytes = requests.get(photo[1]).content
                         photo_object = BytesIO(photo_bytes)
                         try:
                             response = upload.photo_messages(photo_object)[0]
                         except Exception:
-                            print('error', photo)
                             continue
                         owner_id = response['owner_id']
                         photo_id = response['id']
                         access_key = response['access_key']
                         attachment = f'photo{owner_id}_{photo_id}_{access_key}'
                         write_message(user_id=uid, attachment=attachment)
+                        attachments.append(attachment)
+
+                    keyboard = VkKeyboard(one_time=False, inline=True)
+                    keyboard.add_button('FAVORITE', color=VkKeyboardColor.POSITIVE)
+                    keyboard.add_button('BLACKLIST', color=VkKeyboardColor.NEGATIVE)
+                    write_message(uid, 'FAVORITE - в избранное, BLACKLIST - в чс', keyboard)
 
                     keyboard = VkKeyboard(one_time=True)
-                    keyboard.add_button('NEXT', color=VkKeyboardColor.POSITIVE)
-                    keyboard.add_button('EXIT', color=VkKeyboardColor.NEGATIVE)
-                    write_message(user_id=uid, message='next далее', keyboard=keyboard)
-                    del user_photos[user_id]
-                    upload_photos_in_chat_2(user_photos, text, counter=counter)
+                    keyboard.add_button('NEXT', color=VkKeyboardColor.PRIMARY)
+                    keyboard.add_button('EXIT', color=VkKeyboardColor.SECONDARY)
+                    write_message(user_id=uid, message='next далее, ', keyboard=keyboard)
+
+                    bot_logic_advanced(user_photos, text, attachments=attachments, user_id=user_id)
+
+            elif text == 'favorite':
+                if add_to_favorites(uid, user_id, ','.join(attachments)):
+                    keyboard = VkKeyboard(one_time=True)
+                    keyboard.add_button('NEXT', color=VkKeyboardColor.PRIMARY)
+                    keyboard.add_button('EXIT', color=VkKeyboardColor.SECONDARY)
+                    write_message(user_id=uid, message='пользователь добавлен в избранное. '
+                                                       'Next далее', keyboard=keyboard)
+                else:
+                    keyboard = VkKeyboard(one_time=True)
+                    keyboard.add_button('NEXT', color=VkKeyboardColor.PRIMARY)
+                    keyboard.add_button('EXIT', color=VkKeyboardColor.SECONDARY)
+                    write_message(user_id=uid, message='пользователь был добавлен в избранное ранее. '
+                                                       'Next далее', keyboard=keyboard)
+                del user_photos[user_id]
+                bot_logic_advanced(user_photos, text)
+
+            elif text == 'blacklist':
+                if add_to_blacklist(uid, user_id):
+                    keyboard = VkKeyboard(one_time=True)
+                    keyboard.add_button('NEXT', color=VkKeyboardColor.PRIMARY)
+                    keyboard.add_button('EXIT', color=VkKeyboardColor.SECONDARY)
+                    write_message(user_id=uid, message='пользователь добавлен в черный список. '
+                                                       'Next далее', keyboard=keyboard)
+                else:
+                    keyboard = VkKeyboard(one_time=True)
+                    keyboard.add_button('NEXT', color=VkKeyboardColor.PRIMARY)
+                    keyboard.add_button('EXIT', color=VkKeyboardColor.SECONDARY)
+                    write_message(user_id=uid, message='пользователь уже был в черном списке. '
+                                                       'Next далее', keyboard=keyboard)
+                del user_photos[user_id]
+                bot_logic_advanced(user_photos, text)
 
             elif text == 'exit':
                 write_message(user_id=uid, message='для начала нового поиска нажмите start')
                 return start_bot(text)
-
-
-# def upload_photos_in_chat(photos, text, counter=0):
-#
-#     for event in longpoll.listen():
-#         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-#             text = event.text.lower()
-#             uid = event.user_id
-#             if text == 'start' or text == 'next' or text == 'search' or text == 'go':
-#                 try:
-#
-#                     user_link = f'https://vk.com/id{photos[counter][0]}'
-#                     name, surname = get_fullname(photos[counter][0])
-#                     keyboard = VkKeyboard(one_time=False, inline=True)
-#                     keyboard.add_openlink_button('перейти на страницу пользователя', user_link)
-#                     write_message(user_id=uid, message=f'{surname} {name}', keyboard=keyboard)
-#                     add_user_to_db(photos[counter][0])
-#                     print(f'{photos[counter][0]} добавлен в БД')
-#
-#                     for photo in photos[counter][1]:
-#                         write_message(user_id=uid, attachment=photo)
-#                     counter += 1
-#
-#
-#                     keyboard = VkKeyboard(one_time=True)
-#                     keyboard.add_button('NEXT', color=VkKeyboardColor.POSITIVE)
-#                     keyboard.add_button('EXIT', color=VkKeyboardColor.NEGATIVE)
-#                     write_message(user_id=uid, message='next далее', keyboard=keyboard)
-#                     upload_photos_in_chat(photos, text, counter=counter)
-#                 except IndexError:
-#                     keyboard = VkKeyboard(one_time=True)
-#                     keyboard.add_button('TRY AGAIN', color=VkKeyboardColor.NEGATIVE)
-#                     write_message(uid, message='список закончился, для начала нового поиска нажмите TRY AGAIN',
-#                                   keyboard=keyboard)
-#
-#                     return bot_logic()
-#
-#             elif text == 'exit':
-#                 write_message(user_id=uid, message='для начала нового поиска нажмите start')
-#                 return start_bot(text)
 
 
 def start_bot(text=None):
@@ -154,11 +152,10 @@ def start_bot(text=None):
                 elif text == 'exit':
                     write_message(user_id=uid, message=f'Пока {name}. Возвращайся.')
 
-
                 elif text == 'help':
-                    write_message(user_id=uid, message='instruction')
+                    write_message(user_id=uid, message='start - начать. exit выход.')
                 else:
-                    write_message(user_id=uid, message='dont understand message')
+                    write_message(user_id=uid, message='Я тебя не понимаю. нажми start и мы начнем или help для помощи')
 
 
 def bot_logic():
@@ -173,10 +170,8 @@ def bot_logic():
                 name, surname = get_fullname(uid)
 
                 if text in sex:
-                    # search_parameters = dict()
                     search_parameters['sex'] = sex[text]
                     write_message(uid, f'{name}, введи возраст:')
-
 
                 elif re.search(r'^[0-9]{1,3}', text):
                     if int(text) > 18:
@@ -197,7 +192,7 @@ def bot_logic():
                     write_message(uid, 'введи город поиска:')
 
                 elif text in cities:
-                    search_parameters['hometown'] = text
+                    search_parameters['hometown'] = text.title()
                     keyboard = VkKeyboard(one_time=True)
                     keyboard.add_button('SEARCH', color=VkKeyboardColor.POSITIVE)
                     keyboard.add_line()
@@ -207,7 +202,7 @@ def bot_logic():
                                        f"{sex_reverse[search_parameters['sex']].title()}.\n"
                                        f"Возраст - {search_parameters['age_from']}.\n Семейное положение - "
                                        f"{relation_reverse[search_parameters['status']].title()}.\n"
-                                       f"Город - {search_parameters['hometown'].capitalize()}.\n "
+                                       f"Город - {search_parameters['hometown'].title()}.\n "
                                        f"Если все верно нажимай 'SEARCH', если нет - 'TRY AGAIN'.\n 'MENU' для выхода "
                                        f"в главное меню ", keyboard)
 
@@ -215,11 +210,8 @@ def bot_logic():
                     write_message(uid, f'{name} идет поиск... Это займет некоторое время.')
 
                     if len(search_parameters) > 0:
-                        search_parameters['offset'] = lines_count(Users) + 20
-                        print(search_parameters)
-                        print(datetime.now())
+                        # search_parameters['offset'] = lines_count(Users) + 20
                         users_list = find_users(**search_parameters)
-                        print(datetime.now(), 'find_users done')
 
                         if not users_list:
                             keyboard = VkKeyboard(one_time=True)
@@ -229,18 +221,11 @@ def bot_logic():
                                                   f'нажми TRY AGAIN для нового поиска', keyboard=keyboard)
                         else:
                             users_photos = get_photos_for_founded_users(users_list)
-                            print(datetime.now(), 'get_photos_for_founded_users done')
-                            # founded_users = give_photos_to_user(users_photos)
-                            print(datetime.now(), 'give_photos to user done')
-                            # offset = len(founded_users)
                             keyboard = VkKeyboard(one_time=True)
                             keyboard.add_button('GO', color=VkKeyboardColor.POSITIVE)
                             write_message(uid, f'{name}, поиск завершен, жми GO для просмотра. '
                                                f'Найдено {len(users_photos)} пользователей', keyboard=keyboard)
-                            upload_photos_in_chat_2(users_photos, text)
-
-                            # upload_photos_in_chat(founded_users, text, counter=0)
-                            print(datetime.now())
+                            bot_logic_advanced(users_photos, text)
 
                     else:
                         keyboard = VkKeyboard(one_time=True)
@@ -263,7 +248,6 @@ def bot_logic():
 
 
 if __name__ == "__main__":
-
     start_bot()
 
 

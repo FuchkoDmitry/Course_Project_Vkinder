@@ -1,6 +1,6 @@
 import sqlalchemy as sq
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
 Base = declarative_base()
@@ -59,25 +59,39 @@ def find_user_in_db(table_name, user_id):
     return bool(request)
 
 
+def find_in_favorites(favorite_id):
+    request = session.query(Favorites).where(Favorites.favorite_id == f'{favorite_id}').first()
+    return bool(request)
+
+
 def add_to_favorites(user_id, favorite_id, photos_list):
-    user = Favorites(user_id=user_id, favorite_id=favorite_id, photos_list=photos_list)
-    try:
+    if not find_in_favorites(favorite_id):
+        user = Favorites(user_id=str(user_id), favorite_id=str(favorite_id), photos_list=photos_list)
         session.add(user)
         session.commit()
-        print(user.favorite_id, 'added')
+        print('добавлена')
+        print(session.query(Favorites).where(Favorites.favorite_id == f'{favorite_id}').first())
         return True
-    except (IntegrityError, InvalidRequestError):
-        print(user.favorite_id, 'not added')
+    else:
+        print('запись существует в бд')
+        print(session.query(Favorites).where(Favorites.favorite_id == f'{favorite_id}').first())
         return False
 
 
+def find_in_blacklisted(blacklisted_id):
+    request = session.query(BlackList).where(BlackList.blacklisted_user_id == f'{blacklisted_id}').first()
+    return bool(request)
+
+
 def add_to_blacklist(user_id, blacklisted_user_id):
-    user = BlackList(user_id=user_id, blacklisted_user_id=blacklisted_user_id)
-    try:
+    if not find_in_blacklisted(blacklisted_user_id):
+        user = BlackList(user_id=user_id, blacklisted_user_id=blacklisted_user_id)
         session.add(user)
         session.commit()
         print(user.blacklisted_user_id, 'added')
+        print(session.query(BlackList).where(BlackList.blacklisted_user_id == f'{blacklisted_user_id}').first())
         return True
-    except (IntegrityError, InvalidRequestError):
-        print(user.blacklisted_user_id, 'not added')
+    else:
+        print('запись существует в бд')
+        print(session.query(BlackList).where(BlackList.blacklisted_user_id == f'{blacklisted_user_id}').first())
         return False

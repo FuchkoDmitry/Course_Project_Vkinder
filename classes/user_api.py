@@ -1,12 +1,8 @@
-import json.decoder
-
 import vk_api
 from vk_api.tools import VkTools
 from vk_api.upload import VkUpload
-import requests
-from io import BytesIO
-from db import Users, add_user_to_db, Base, engine, find_user_in_db
-from vk_api.exceptions import ApiError
+from db import Users, find_user_in_db, find_in_blacklisted
+
 
 
 
@@ -27,26 +23,14 @@ def find_users(**kwargs):
               'fields': 'sex, city, relation, domain, bdate, hometown'
               }
 
-    users_iter = tools.get_all_iter('users.search', max_count=4, values={**params, **kwargs})
+    users_iter = tools.get_all_iter('users.search', max_count=5000, values={**params, **kwargs})
     for user in users_iter:
-        if find_user_in_db(Users, user['id']) or user['is_closed']:
-            # print(f'{user["id"]} есть в базе')
+        if find_user_in_db(Users, user['id']) or user['is_closed'] or find_in_blacklisted(user['id']):
             continue
         else:
-            # print(f'{user} добавлен')
             users.append(user['id'])
-
-        # if add_user_to_db(user['id']):
-        #     users.append(user['id'])
-        #     print(f'{user} добавлен')
-        # else:
-        #     print('запись существует')
-        #     print(f'{user} не добавлен')
-        #     continue
     if len(users) == 0:
         return False
-    print('find_users отработала', len(users))
-
     return users
 
 
@@ -67,7 +51,6 @@ def get_photos_for_founded_users(user_list):
     )
 
     for user_id, data in users_photos.items():
-
         if data['count'] == 0:
             continue
         else:
@@ -77,44 +60,9 @@ def get_photos_for_founded_users(user_list):
                     photo['likes']['count'],
                     photo['sizes'][-1]['url']
                 ))
-            # print(f'{user_id} добавлен')
 
         if data['count'] > 3:
             user_photos[user_id].sort(key=lambda x: (x[0], x[1]), reverse=True)
             user_photos[user_id] = user_photos[user_id][:3]
-        # print(user_photos)
-
-        # else:
-        #     user_photos[user_id] = user_photos[user_id]
-    print(f'get_photos_for_founded_users() отработала')
 
     return user_photos
-
-
-# def give_photos_to_user(user_photos):
-#
-#     attachments = []
-#
-#     for user_id, photos in user_photos.items():
-#         photos_list = []
-#         for photo in photos:
-#             photo_bytes = requests.get(photo[1]).content
-#             photo_object = BytesIO(photo_bytes)
-#
-#             try:
-#                 response = upload.photo_messages(photo_object)[0]
-#
-#                 owner_id = response['owner_id']
-#                 photo_id = response['id']
-#                 access_key = response['access_key']
-#                 photos_list.append(f'photo{owner_id}_{photo_id}_{access_key}')
-#
-#             except Exception as er:
-#                 print('error', photo)
-#                 # print(er)
-#                 continue
-#             except json.decoder.JSONDecodeError:
-#                 print('json decode error', photo)
-#         attachments.append([user_id, photos_list])
-#     print('give_photos_to user отработала')
-#     return attachments
