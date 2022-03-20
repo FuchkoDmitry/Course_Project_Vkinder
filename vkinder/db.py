@@ -3,6 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from keys import db_name, db_login, db_password
+from sqlalchemy import and_
+# from group import write_message
+# from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
 Base = declarative_base()
 
@@ -28,6 +31,7 @@ class BlackList(Base):
     __tablename__ = 'black_list'
     user_id = sq.Column(sq.Integer, primary_key=True)
     blacklisted_user_id = sq.Column(sq.Integer, primary_key=True)
+    photos_list = sq.Column(sq.Text)
 
 
 def create_tables(db_table):
@@ -55,18 +59,21 @@ def add_user_to_db(user_id):
 
 
 def find_user_in_db(table_name, user_id):
-    request = session.query(table_name).where(table_name.founded_user_link == f'{user_id}').first()
+    request = session.query(table_name).where(
+        table_name.founded_user_link == f'{user_id}').first()
     return bool(request)
 
 
-def find_in_favorites(favorite_id):
-    request = session.query(Favorites).where(Favorites.favorite_id == f'{favorite_id}').first()
+def find_in_favorites(favorite_id, user_id):
+    request = session.query(Favorites).where(and_(Favorites.favorite_id == f'{favorite_id}',
+                                                  Favorites.user_id == f'{user_id}')).first()
     return bool(request)
 
 
 def add_to_favorites(user_id, favorite_id, photos_list):
-    if not find_in_favorites(favorite_id):
-        user = Favorites(user_id=str(user_id), favorite_id=str(favorite_id), photos_list=photos_list)
+    if not find_in_favorites(favorite_id, user_id):
+        user = Favorites(user_id=str(user_id), favorite_id=str(favorite_id),
+                         photos_list=photos_list)
         session.add(user)
         session.commit()
         return True
@@ -74,16 +81,61 @@ def add_to_favorites(user_id, favorite_id, photos_list):
         return False
 
 
-def find_in_blacklisted(blacklisted_id):
-    request = session.query(BlackList).where(BlackList.blacklisted_user_id == f'{blacklisted_id}').first()
+def find_in_blacklisted(blacklisted_id, user_id):
+    request = session.query(BlackList).where(and_(
+        BlackList.blacklisted_user_id == f'{blacklisted_id}',
+        BlackList.user_id == f'{user_id}')).first()
     return bool(request)
 
 
-def add_to_blacklist(user_id, blacklisted_user_id):
-    if not find_in_blacklisted(blacklisted_user_id):
-        user = BlackList(user_id=user_id, blacklisted_user_id=blacklisted_user_id)
+def add_to_blacklist(user_id, blacklisted_user_id, photos_list):
+    if not find_in_blacklisted(blacklisted_user_id, user_id):
+        user = BlackList(user_id=user_id, blacklisted_user_id=blacklisted_user_id,
+                         photos_list=photos_list)
         session.add(user)
         session.commit()
         return True
     else:
         return False
+
+
+def get_users_in_table(table_name, user_id):
+    user_list = session.query(table_name).where(table_name.user_id == user_id).all()
+    if user_list:
+        return user_list
+    else:
+        return None
+
+
+def delete_from_blacklist(user_id, blacklisted_user_id):
+    user = session.query(BlackList).where(and_(
+        BlackList.user_id == user_id,
+        BlackList.blacklisted_user_id == blacklisted_user_id)
+    ).first()
+    session.delete(user)
+    session.commit()
+
+
+def delete_from_favorites(user_id, favorite_id):
+    user = session.query(Favorites).where(and_(
+        Favorites.user_id == user_id,
+        Favorites.favorite_id == favorite_id)
+    ).first()
+    session.delete(user)
+    session.commit()
+
+
+
+
+# create_tables(BlackList)
+# response = session.query(Favorites).all()
+# print(response)
+# for user in response:
+#     print(user.favorite_id)
+#     print(user.photos_list.split(','))
+# r = session.query(BlackList).where(and_(BlackList.user_id == 1136869, BlackList.blacklisted_user_id == 589864682)).delete()
+# print(r)
+# response = session.query(BlackList).all()
+# for user in response:
+#     print(user.user_id, user.blacklisted_user_id, user.photos_list)
+

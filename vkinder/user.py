@@ -9,7 +9,7 @@ vk_user_session = vk_api.VkApi(token=user_token)
 tools = VkTools(vk_user_session)
 
 
-def find_users(**kwargs):
+def find_users(user_id=None, **kwargs):
     users = []
 
     params = {'sort': 0,
@@ -20,7 +20,7 @@ def find_users(**kwargs):
 
     users_iter = tools.get_all_iter('users.search', max_count=1000, values={**params, **kwargs})
     for user in users_iter:
-        if find_user_in_db(Users, user['id']) or user['is_closed'] or find_in_blacklisted(user['id']):
+        if find_user_in_db(Users, user['id']) or user['is_closed'] or find_in_blacklisted(user['id'], user_id):
             continue
         else:
             users.append(user['id'])
