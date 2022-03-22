@@ -123,19 +123,3 @@ def delete_from_favorites(user_id, favorite_id):
     ).first()
     session.delete(user)
     session.commit()
-
-
-
-
-# create_tables(BlackList)
-# response = session.query(Favorites).all()
-# print(response)
-# for user in response:
-#     print(user.favorite_id)
-#     print(user.photos_list.split(','))
-# r = session.query(BlackList).where(and_(BlackList.user_id == 1136869, BlackList.blacklisted_user_id == 589864682)).delete()
-# print(r)
-# response = session.query(BlackList).all()
-# for user in response:
-#     print(user.user_id, user.blacklisted_user_id, user.photos_list)
-
