@@ -1,10 +1,8 @@
 import vk_api
 from random import randrange
-from keys import GROUP_TOKEN
+import os
 
-
-group_token = GROUP_TOKEN
-
+group_token = os.getenv('GROUP_TOKEN')
 vk_group_session = vk_api.VkApi(token=group_token)
 
 

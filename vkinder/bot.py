@@ -239,7 +239,7 @@ def start_bot(text=None, users_list=None, count=-1, user_id=None):
                     keyboard.add_button('EXIT', color=VkKeyboardColor.NEGATIVE)
                     write_message(uid, 'Пользователь удален из черного списка. BL NEXT - далее, '
                                            'EXIT - выход, START - начать новый поиск', keyboard)
-                    start_bot(count=count)
+                    start_bot(count=count - 1)
 
                 elif text == 'delete':
                     delete_from_favorites(uid, user_id)
@@ -250,7 +250,7 @@ def start_bot(text=None, users_list=None, count=-1, user_id=None):
                     keyboard.add_button('EXIT', color=VkKeyboardColor.NEGATIVE)
                     write_message(uid, 'Пользователь удален из избранного. NEXT - далее, '
                                        'EXIT - выход, START - начать новый поиск', keyboard)
-                    start_bot()
+                    start_bot(count=count - 1)
 
                 else:
                     write_message(user_id=uid, message='Я тебя не понимаю. нажми start'

@@ -1,10 +1,10 @@
 import vk_api
 from vk_api.tools import VkTools
 from vkinder.db import Users, find_user_in_db, find_in_blacklisted
-from keys import USER_TOKEN
+import os
 
+user_token = os.getenv('USER_TOKEN')
 
-user_token = USER_TOKEN
 vk_user_session = vk_api.VkApi(token=user_token)
 tools = VkTools(vk_user_session)
 

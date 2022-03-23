@@ -2,12 +2,14 @@ import sqlalchemy as sq
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
-from keys import db_name, db_login, db_password
 from sqlalchemy import and_
-# from group import write_message
-# from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+import os
 
 Base = declarative_base()
+db_login = os.getenv('db_login')
+db_password = os.getenv('db_password')
+db_name = os.getenv('db_name')
+
 
 db = f'postgresql://{db_login}:{db_password}@localhost:5432/{db_name}'
 engine = sq.create_engine(db)

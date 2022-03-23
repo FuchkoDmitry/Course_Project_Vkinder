@@ -3,7 +3,7 @@ import csv
 csv.register_dialect('custom_csv', delimiter=';')
 cities = set()
 
-with open('./cities_list.csv') as file:
+with open('cities_list.csv', encoding='utf-8') as file:
     reader = csv.reader(file, 'custom_csv')
     for city in list(reader)[1:]:
         cities.add(city[0].lower())

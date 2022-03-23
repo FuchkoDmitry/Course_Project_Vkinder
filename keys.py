@@ -1,5 +1,0 @@
-USER_TOKEN = ''
-GROUP_TOKEN = ''
-db_name = ''
-db_login = ''
-db_password = ''
